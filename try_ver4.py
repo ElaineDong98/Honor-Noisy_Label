@@ -11,13 +11,14 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn import metrics
 from sklearn.metrics import auc   
 from sklearn.svm import SVC 
+from sklearn.tree import DecisionTreeClassifier
 
 from itertools import cycle
 
 from sklearn import tree
 import pandas as pd
 
-from truthdiscovery import TruthFinder
+#from truthdiscovery import TruthFinder
 
 
 #majority input: decisions from all experts
@@ -102,7 +103,7 @@ def create_features(size, neg_ratio):
 	plt.plot(x1[:,0],x1[:,1],'r+')
 	interactive(True)
 	plt.show()
-	#make two features for 0
+	#make two features for -1
 	#plt.figure(2)
 	mu = np.array([[1.3, 1.3]])
 	Sigma = np.array([[1.2, 1], [0.9, 1.8]])
@@ -118,6 +119,71 @@ def create_features(size, neg_ratio):
 	x = np.concatenate((x1, x2), axis=0)
 	return x, correct
 
+
+	########################################
+	# Adaboost: reference: https://github.com/jaimeps/adaboost-implementation/blob/master/adaboost.py
+	#error rate
+def get_error_rate(pred, Y):
+	return sum(pred != Y) / float(len(Y));
+
+
+def generic_clf(Y_train, X_train, Y_test, X_test, clf):
+    clf.fit(X_train, Y_train)
+    pred_train = clf.predict(X_train)
+    pred_test = clf.predict(X_test)
+    return get_error_rate(pred_train, Y_train), \
+        get_error_rate(pred_test, Y_test)
+#adaboost
+def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf):
+	n_train, n_test = len(X_train), len(X_test)
+	# Initialize weights
+	# w = array([1/n, 1/n, ... 1/n])
+	w = np.ones(n_train) / n_train
+	pred_train, pred_test = [np.zeros(n_train), np.zeros(n_test)]
+	
+	for i in range(M):
+		# Fit a classifier with the specific weights
+		clf.fit(X_train, Y_train, sample_weight = w)
+		pred_train_i = clf.predict(X_train)
+		pred_test_i = clf.predict(X_test)
+		# Indicator function
+		#miss has 1, 0
+		miss = [int(x) for x in (pred_train_i != Y_train)]
+		# Equivalent miss with 1,-1 to update weights
+		miss2 = [x if x==1 else -1 for x in miss]
+		# Error
+		err_m = np.dot(w,miss) / sum(w)
+		# Alpha
+		alpha_m = 0.5 * np.log( (1 - err_m) / max(1e-16, float(err_m)))
+		# New weights
+		w = np.multiply(w, np.exp([float(x) * alpha_m for x in miss2]))
+		# Add to prediction
+		pred_train = [sum(x) for x in zip(pred_train, 
+										[x * alpha_m for x in pred_train_i])]
+		pred_test = [sum(x) for x in zip(pred_test, 
+										[x * alpha_m for x in pred_test_i])]
+	
+	pred_train, pred_test = np.sign(pred_train), np.sign(pred_test)
+	# Return error rate in train and test set
+	return get_error_rate(pred_train, Y_train), \
+		get_error_rate(pred_test, Y_test)
+
+
+def plot_error_rate(er_train, er_test, method):
+	df_error = pd.DataFrame([er_train, er_test]).T
+	df_error.columns = ['Training_'+method, 'Test_'+method]
+	plot1 = df_error.plot(linewidth=3, figsize=(8, 6),
+						color=['lightblue', 'darkblue'], grid=True)
+	plot1.set_xlabel('Number of iterations', fontsize=12)
+	plot1.set_xticklabels(range(0, 450, 50))
+	plot1.set_ylabel('Error rate', fontsize=12)
+	plot1.set_title('Error rate vs number of iterations', fontsize=16)
+	plt.axhline(y=er_test[0], linewidth=1, color='red', ls='dashed')
+	plt.show()
+
+
+	########################################
+
 if __name__ == '__main__':
 
 	# x is (x1, x2), tag is 1/-1
@@ -126,14 +192,49 @@ if __name__ == '__main__':
 
 	workbook = xlsxwriter.Workbook('result.xlsx') 
 	worksheet = workbook.add_worksheet() 
-
+	
 	e1 = np.random.choice([-1, 1], size=500, p=[.9, .1])
 	e2 = np.random.choice([-1, 1], size=500, p=[.75, .25])
 	e3 = np.random.choice([-1, 1], size=500, p=[.8, .2])
 	e4 = np.random.choice([-1, 1], size=500, p=[.85, .15])
 	e5 = np.random.choice([-1, 1], size=500, p=[.8, .2])
+	list_sum = [list(a) for a in zip(e1, e2, e3, e4, e5)]
 	major_pred = majoriy(e1, e2, e3, e4, e5)
 	weight_pred = weight(e1, e2, e3, e4, e5)
+
+	#set up our inaccurate true label
+	X_train_maj, X_test_maj, y_train_maj, y_test_maj = train_test_split(
+	    x, major_pred, test_size=0.33, random_state=15)
+	X_train_wei, X_test_wei, y_train_wei, y_test_wei = train_test_split(
+	    x, weight_pred, test_size=0.33, random_state=15)
+
+	#Use adaboost for major and weghted
+	clf_tree = DecisionTreeClassifier(max_depth=1, random_state=1)
+	er_tree_maj = generic_clf(y_train_maj, X_train_maj,
+	                          y_test_maj, X_test_maj, clf_tree)
+	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
+	                          y_test_wei, X_test_wei, clf_tree)
+	# Fit Adaboost classifier using a decision tree as base estimator
+    # Test with different number of iterations
+	er_train_maj, er_test_maj = [er_tree_maj[0]], [er_tree_maj[1]]
+	er_train_wei, er_test_wei = [er_tree_wei[0]], [er_tree_wei[1]]
+	#x_range = 10, 35, 60, 85, ... 410
+	x_range = range(10, 410, 25)
+
+	for i in x_range:
+		er_i_maj = adaboost_clf(y_train_maj, X_train_maj, y_test_maj, X_test_maj, i, clf_tree)
+		er_train_maj.append(er_i_maj[0])
+		er_test_maj.append(er_i_maj[1])
+		
+		er_i_wei = adaboost_clf(y_train_wei, X_train_wei, y_test_wei, X_test_wei, i, clf_tree)
+		er_train_wei.append(er_i_wei[0])
+		er_test_wei.append(er_i_wei[1])
+    
+    # Compare error rate vs number of iterations
+	plot_error_rate(er_train_maj, er_test_maj, "Majority Method")
+	plot_error_rate(er_train_wei, er_test_wei, "Weighting Method")
+
+
 
 	"""
 
@@ -241,22 +342,6 @@ if __name__ == '__main__':
 		aucs = metrics.auc(fpr[i], tpr[i]) 
 		roc_auc.append(aucs)
 	
-	lw = 2
-	colors = cycle(['aqua', 'darkorange', 'cornflowerblue', "hotpink", "green", "red", "darkred", "pink"])
-	for i, color in zip(range(8), colors):
-	    plt.plot(fpr[i], tpr[i], color=color, lw=lw,
-	             label='ROC curve of class {0} (area = {1:0.2f})'
-	             ''.format(i, roc_auc[i]))
-
-	plt.plot([0, 1], [0, 1], 'k--', lw=lw)
-	plt.xlim([0.0, 1.0])
-	plt.ylim([0.0, 1.05])
-	plt.xlabel('False Positive Rate')
-	plt.ylabel('True Positive Rate')
-	plt.title('ROC curve for five experts')
-	plt.legend(loc="lower right")
-	plt.show()
-
 
 	lw = 2
 	colors = cycle(['aqua', 'darkorange', 'cornflowerblue', "hotpink", "green", "red", "darkred", "pink"])
@@ -291,3 +376,8 @@ if __name__ == '__main__':
 
 
 	workbook.close() 
+
+
+
+#reference
+#https://web.stanford.edu/~hastie/Papers/samme.pdf
