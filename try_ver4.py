@@ -134,7 +134,9 @@ def generic_clf(Y_train, X_train, Y_test, X_test, clf):
     return get_error_rate(pred_train, Y_train), \
         get_error_rate(pred_test, Y_test)
 #adaboost
-def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf):
+
+
+def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf, Y_true_train, Y_true_test):
 	n_train, n_test = len(X_train), len(X_test)
 	# Initialize weights
 	# w = array([1/n, 1/n, ... 1/n])
@@ -164,9 +166,15 @@ def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf):
 										[x * alpha_m for x in pred_test_i])]
 	
 	pred_train, pred_test = np.sign(pred_train), np.sign(pred_test)
+	print("the true value- train", get_error_rate(pred_train, Y_true_train))
+	print("the true value- test", get_error_rate(pred_test, Y_true_test))
+	print("this works", get_error_rate(pred_train, Y_train))
+
 	# Return error rate in train and test set
 	return get_error_rate(pred_train, Y_train), \
-		get_error_rate(pred_test, Y_test)
+		get_error_rate(pred_test, Y_test), \
+            get_error_rate(pred_train, Y_true_train), \
+            get_error_rate(pred_test, Y_true_test)
 
 
 def plot_error_rate(er_train, er_test, method):
@@ -209,30 +217,47 @@ if __name__ == '__main__':
 	    x, weight_pred, test_size=0.33, random_state=15)
 
 	#Use adaboost for major and weghted
-	clf_tree = DecisionTreeClassifier(max_depth=1, random_state=1)
+	clf_tree = DecisionTreeClassifier(max_depth=2, random_state=1)
 	er_tree_maj = generic_clf(y_train_maj, X_train_maj,
 	                          y_test_maj, X_test_maj, clf_tree)
 	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
 	                          y_test_wei, X_test_wei, clf_tree)
+	er_tree_true = generic_clf(y_train, X_train,
+                          y_test, X_test, clf_tree)
 	# Fit Adaboost classifier using a decision tree as base estimator
     # Test with different number of iterations
 	er_train_maj, er_test_maj = [er_tree_maj[0]], [er_tree_maj[1]]
 	er_train_wei, er_test_wei = [er_tree_wei[0]], [er_tree_wei[1]]
+	er_true_train_maj, er_true_test_maj = [er_tree_true[0]], [er_tree_true[1]]
+	er_true_train_wei, er_true_test_wei = [er_tree_true[0]], [er_tree_true[1]]
 	#x_range = 10, 35, 60, 85, ... 410
 	x_range = range(10, 410, 25)
 
 	for i in x_range:
-		er_i_maj = adaboost_clf(y_train_maj, X_train_maj, y_test_maj, X_test_maj, i, clf_tree)
+		er_i_maj = adaboost_clf(y_train_maj, X_train_maj,
+		                        y_test_maj, X_test_maj, i, clf_tree, y_train, y_test)
 		er_train_maj.append(er_i_maj[0])
 		er_test_maj.append(er_i_maj[1])
+		er_true_train_maj.append(er_i_maj[2])
+		er_true_test_maj.append(er_i_maj[3])
 		
-		er_i_wei = adaboost_clf(y_train_wei, X_train_wei, y_test_wei, X_test_wei, i, clf_tree)
+		er_i_wei = adaboost_clf(y_train_wei, X_train_wei,
+		                        y_test_wei, X_test_wei, i, clf_tree, y_train, y_test)
 		er_train_wei.append(er_i_wei[0])
 		er_test_wei.append(er_i_wei[1])
+		er_true_train_wei.append(er_i_maj[2])
+		er_true_test_wei.append(er_i_maj[3])
     
     # Compare error rate vs number of iterations
-	plot_error_rate(er_train_maj, er_test_maj, "Majority Method")
-	plot_error_rate(er_train_wei, er_test_wei, "Weighting Method")
+	plot_error_rate(er_train_maj, er_test_maj,
+	                "Majority vote label for adaboost & calculate error")
+	plot_error_rate(er_train_wei, er_test_wei,
+	                "Weighting vote label for adaboost & calculate error ")
+	plot_error_rate(er_true_train_maj, er_true_test_maj,
+	                "Majority vote label for adaboost; real true label as error detector")
+	plot_error_rate(er_true_train_wei, er_true_test_wei,
+	                "Weighting vote label for adaboost; real true label as error detector")
+
 
 
 
