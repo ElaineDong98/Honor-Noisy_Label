@@ -113,6 +113,8 @@ def create_features(size, neg_ratio):
 
 	correct = [1] * pos_num
 	correct = np.concatenate((correct, [-1] * neg_num), axis=0)
+	x1.round(decimals=3)
+	x2.round(decimals=3)
 	x = np.concatenate((x1, x2), axis=0)
 	return x, correct
 
@@ -167,13 +169,14 @@ def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf, Y_true_train, Y_true_
 	pred_train, pred_test = np.sign(pred_train), np.sign(pred_test)
 	print("the true value- train", get_error_rate(pred_train, Y_true_train))
 	print("the true value- test", get_error_rate(pred_test, Y_true_test))
-	print("this works", get_error_rate(pred_train, Y_train))
+	print("fake - train", get_error_rate(pred_train, Y_train))
+	print("fake - test", get_error_rate(pred_test, Y_test))
 
 	# Return error rate in train and test set
 	return get_error_rate(pred_train, Y_train), \
 		get_error_rate(pred_test, Y_test), \
             get_error_rate(pred_train, Y_true_train), \
-            get_error_rate(pred_test, Y_true_test)
+            get_error_rate(pred_test, Y_true_test), pred_train, pred_test
 
 
 def plot_error_rate(er_train, er_test, method):
@@ -190,6 +193,16 @@ def plot_error_rate(er_train, er_test, method):
 
 
 	########################################
+def reorder(arr_train, arr_test, ind_train, ind_test):
+	n = len(arr_train) + len(arr_test)
+	temp = [0] * n
+	# arr[i] should be
+    # present at index[i] index
+	for i in range(0, len(arr_train)):
+		temp[ind_train[i]] = arr_train[i]
+	for i in range(0, len(arr_test)):
+		temp[ind_test[i]] = arr_test[i]
+	return temp
 
 if __name__ == '__main__':
 
@@ -219,7 +232,7 @@ if __name__ == '__main__':
 	X_train_wei, X_test_wei, y_train_wei, y_test_wei = train_test_split(
 	    x, weight_pred, test_size=0.33, random_state=15)
 	#Use adaboost for major and weghted
-	clf_tree = DecisionTreeClassifier(max_depth=2, random_state=1)
+	clf_tree = DecisionTreeClassifier(max_depth=3, random_state=1)
 	er_tree_maj = generic_clf(y_train_maj, X_train_maj,
 	                          y_test_maj, X_test_maj, clf_tree, y_train, y_test)
 	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
@@ -231,7 +244,7 @@ if __name__ == '__main__':
 	er_true_train_maj, er_true_test_maj = [er_tree_maj[2]], [er_tree_maj[3]]
 	er_true_train_wei, er_true_test_wei = [er_tree_wei[2]], [er_tree_wei[3]]
 	#x_range = 10, 35, 60, 85, ... 410
-	x_range = range(10, 250, 20)
+	x_range = range(10, 460, 25)
 
 	for i in x_range:
 		er_i_maj = adaboost_clf(y_train_maj, X_train_maj,
@@ -240,15 +253,17 @@ if __name__ == '__main__':
 		er_test_maj.append(er_i_maj[1])
 		er_true_train_maj.append(er_i_maj[2])
 		er_true_test_maj.append(er_i_maj[3])
-		
+
 		er_i_wei = adaboost_clf(y_train_wei, X_train_wei,
 		                        y_test_wei, X_test_wei, i, clf_tree, y_train, y_test)
 		er_train_wei.append(er_i_wei[0])
 		er_test_wei.append(er_i_wei[1])
-		er_true_train_wei.append(er_i_maj[2])
-		er_true_test_wei.append(er_i_maj[3])
-    
-    # Compare error rate vs number of iterations
+		er_true_train_wei.append(er_i_wei[2])
+		er_true_test_wei.append(er_i_wei[3])
+
+	pred_train = er_i_wei[4]
+	pred_test = er_i_wei[5]
+	# Compare error rate vs number of iterations
 	plot_error_rate(er_train_maj, er_test_maj,
 	                "Majority vote label for adaboost & calculate error")
 	plot_error_rate(er_train_wei, er_test_wei,
@@ -257,7 +272,6 @@ if __name__ == '__main__':
 	                "Majority vote label for adaboost; real true label as error detector")
 	plot_error_rate(er_true_train_wei, er_true_test_wei,
 	                "Weighting vote label for adaboost; real true label as error detector")
-
 
 	
 
@@ -298,56 +312,37 @@ if __name__ == '__main__':
 	"""
 
 	########################################
-	"""
+	
 	##############
 	#building models
 	#clf = GaussianNB()
-	clf = KNeighborsClassifier()
+	#clf = KNeighborsClassifier()
 	#clf = tree.DecisionTreeClassifier()
-
-	y1_pred = clf.fit(X_train, e1[:3350]).predict(X_test)
-	y2_pred = clf.fit(X_train, e2[:3350]).predict(X_test)
-	y3_pred = clf.fit(X_train, e3[:3350]).predict(X_test)
-	y4_pred = clf.fit(X_train, e4[:3350]).predict(X_test)
-	y5_pred = clf.fit(X_train, e5[:3350]).predict(X_test)
-
-	y_major_pred = clf.fit(X_train, major_pred[:3350]).predict(X_test)
-	y_wei_pred = clf.fit(X_train, weight_pred[:3350]).predict(X_test)
-
-
-##############################
-
-	train_adaboost = X_train
-	for i in range(4):
-		train_adaboost = np.concatenate((train_adaboost, X_train), axis=0)
-
-	y_sum = np.append(e1[:3350], e2[:3350])
-	y_sum = np.append(np.append(y_sum, e3[:3350]), e4[:3350])
-	y_sum = np.append(y_sum, e5[:3350])
-
-	# Create adaboost classifer object
-
-	svc=SVC(probability=True, kernel='linear')
-	abc =AdaBoostClassifier(n_estimators=100, base_estimator=svc, learning_rate=1)
-	model = abc.fit(train_adaboost, y_sum)
-	y_major_pred_ada = model.predict(X_test)
-
-
-##############################
-
-
-	y1_ac = accuracy(y1_pred, y_test)
-	y2_ac = accuracy(y2_pred, y_test)
-	y3_ac = accuracy(y3_pred, y_test)
-	y4_ac = accuracy(y4_pred, y_test)
-	y5_ac = accuracy(y5_pred, y_test)
-	y_major_ac = accuracy(y_major_pred, y_test)
-	y_wei_ac = accuracy(y_wei_pred, y_test)
-	y_major_pred_ada_ac = accuracy(y_major_pred_ada, y_test)
-
-	print("accuracy", y1_ac, y2_ac, y3_ac, y4_ac, y5_ac, y_major_ac,y_wei_ac,y_major_pred_ada_ac)
 	
 
+##############################
+
+	# Create adaboost classifer object
+	#svc=SVC(probability=True, kernel='linear')
+	abc = AdaBoostClassifier(n_estimators=200, base_estimator=DecisionTreeClassifier(
+		max_depth=2), learning_rate=1)
+	offi_maj = abc.fit(X_train_maj, y_train_maj)
+	y_maj_tr_pred_ada = offi_maj.predict(X_train_maj)
+	y_maj_te_pred_ada = offi_maj.predict(X_test_wei)
+	er_train_maj = get_error_rate(y_maj_tr_pred_ada, y_train_maj)
+	er_test_maj = get_error_rate(y_maj_te_pred_ada, y_test_maj)
+	print("train eror rate", er_train_maj, "test error eate", er_test_maj)
+	"""
+	plot_error_rate(er_train_wei, er_test_wei,
+                 "offi: Weighting vote label for adaboost & calculate error ")
+	plot_error_rate(er_true_train_maj, er_true_test_maj,
+                 "offi: Majority vote label for adaboost; real true label as error detector")
+	plot_error_rate(er_true_train_wei, er_true_test_wei,
+                 "offi: Weighting vote label for adaboost; real true label as error detector")
+	"""
+
+##############################
+	"""
 	prec = []
 	recall = []
 	recall_auc = []
@@ -385,21 +380,22 @@ if __name__ == '__main__':
 	plt.show()
 
 ######################################################
-
+	"""
 	row = 0
 	column = 0
-	worksheet.write_row('A1', ["x1", "x2", "correct tag", "e1", "e2", "e3", "e4", "e5"])
+	worksheet.write_row('A1', ["x1", "x2", "correct tag", "e1", "e2", "e3", "e4", "e5", "ada_pred"])
 	row += 1
 	# iterating through content list 
-	for i in range(500): 
+	ada_pred = reorder(pred_train, pred_test, ind_train, ind_test)
+	for i in range(num_samples): 
 		column = 0
 		# write operation perform 
-		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], e1[i], e2[i], e3[i], e4[i], e5[i]])
+		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], e1[i], e2[i], e3[i], e4[i], e5[i], ada_pred[i]])
 		row += 1
 	#worksheet.write(row, 0, "major_accuracy: "+ str(y_major_ac))
 	#worksheet.write(row+1, 0, "weight_accuracy: "+ str(y_wei_ac))
 
-	"""
+	
 	workbook.close() 
 
 
