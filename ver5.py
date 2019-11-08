@@ -95,23 +95,20 @@ def create_features(size, neg_ratio):
 	pos_num = int(size - neg_num)
 	#make two features for 1 
 	plt.figure(1)
-	mu = np.array([[5, 4]])
-	Sigma = np.array([[1.2, 1], [0.75, 1.5]])
-	R = cholesky(Sigma)
-	x1 = np.dot(np.random.randn(pos_num, 2), R) + mu
-	plt.subplot(221)
-	plt.plot(x1[:,0],x1[:,1],'r+')
-	interactive(True)
-	plt.show()
-	#make two features for -1
-	#plt.figure(2)
-	mu = np.array([[1.3, 1.3]])
-	Sigma = np.array([[1.2, 1], [0.9, 1.8]])
-	R = cholesky(Sigma)
-	x2 = np.dot(np.random.randn(neg_num, 2), R) + mu
-	plt.subplot(222)
-	plt.plot(x2[:,0],x2[:,1],'r.')
-	interactive(False)
+
+	#negative
+	mu2 = np.array([[1.3, 1.3]])
+	Sigma2 = np.array([[1.2, 1], [0.9, 1.8]])
+	R2 = cholesky(Sigma2)
+	x2 = np.dot(np.random.randn(neg_num, 2), R2) + mu2
+	plt.plot(x2[:,0],x2[:,1],'r.', color = 'blue', alpha=0.5)
+	#positive
+	mu1 = np.array([[5, 4]])
+	Sigma1 = np.array([[1.2, 1], [0.75, 1.5]])
+	R1 = cholesky(Sigma1)
+	x1 = np.dot(np.random.randn(pos_num, 2), R1) + mu1
+	plt.plot(x1[:, 0], x1[:, 1], 'r+', color='red', alpha=0.5)
+
 	plt.show()
 
 	correct = [1] * pos_num
@@ -127,12 +124,14 @@ def get_error_rate(pred, Y):
 	return (sum(pred != Y) / float(len(Y)))
 
 
-def generic_clf(Y_train, X_train, Y_test, X_test, clf):
+def generic_clf(Y_train, X_train, Y_test, X_test, clf, y_true_train, y_true_test):
     clf.fit(X_train, Y_train)
     pred_train = clf.predict(X_train)
     pred_test = clf.predict(X_test)
     return get_error_rate(pred_train, Y_train), \
-        get_error_rate(pred_test, Y_test)
+        get_error_rate(pred_test, Y_test), \
+        get_error_rate(pred_train, y_true_train), \
+        get_error_rate(pred_test, y_true_test)
 #adaboost
 
 
@@ -206,7 +205,7 @@ if __name__ == '__main__':
 	worksheet = workbook.add_worksheet() 
 	
 	e1 = np.random.choice([-1, 1], size = num_samples, p=[.9, .1])
-	e2 = np.random.choice([-1, 1], size = num_samples, p=[.95, .05])
+	e2 = np.random.choice([-1, 1], size = num_samples, p=[.89, .11])
 	e3 = np.random.choice([-1, 1], size = num_samples, p=[.93, .07])
 	e4 = np.random.choice([-1, 1], size = num_samples, p=[.85, .15])
 	e5 = np.random.choice([-1, 1], size = num_samples, p=[.88, .12])
@@ -222,20 +221,17 @@ if __name__ == '__main__':
 	#Use adaboost for major and weghted
 	clf_tree = DecisionTreeClassifier(max_depth=2, random_state=1)
 	er_tree_maj = generic_clf(y_train_maj, X_train_maj,
-	                          y_test_maj, X_test_maj, clf_tree)
+	                          y_test_maj, X_test_maj, clf_tree, y_train, y_test)
 	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
-	                          y_test_wei, X_test_wei, clf_tree)
-	er_tree_true = generic_clf(y_train, X_train,
-                          y_test, X_test, clf_tree)
-	print(get_error_rate(y_train_maj, y_train))
+	                          y_test_wei, X_test_wei, clf_tree, y_train, y_test)
 	# Fit Adaboost classifier using a decision tree as base estimator
     # Test with different number of iterations
 	er_train_maj, er_test_maj = [er_tree_maj[0]], [er_tree_maj[1]]
 	er_train_wei, er_test_wei = [er_tree_wei[0]], [er_tree_wei[1]]
-	er_true_train_maj, er_true_test_maj = [er_tree_true[0]], [er_tree_true[1]]
-	er_true_train_wei, er_true_test_wei = [er_tree_true[0]], [er_tree_true[1]]
+	er_true_train_maj, er_true_test_maj = [er_tree_maj[2]], [er_tree_maj[3]]
+	er_true_train_wei, er_true_test_wei = [er_tree_wei[2]], [er_tree_wei[3]]
 	#x_range = 10, 35, 60, 85, ... 410
-	x_range = range(10, 410, 25)
+	x_range = range(10, 250, 20)
 
 	for i in x_range:
 		er_i_maj = adaboost_clf(y_train_maj, X_train_maj,
@@ -263,7 +259,7 @@ if __name__ == '__main__':
 	                "Weighting vote label for adaboost; real true label as error detector")
 
 
-
+	
 
 	"""
 
@@ -302,21 +298,21 @@ if __name__ == '__main__':
 	"""
 
 	########################################
-
+	"""
 	##############
 	#building models
 	#clf = GaussianNB()
 	clf = KNeighborsClassifier()
 	#clf = tree.DecisionTreeClassifier()
 
-	y1_pred = clf.fit(X_train, e1[:335]).predict(X_test)
-	y2_pred = clf.fit(X_train, e2[:335]).predict(X_test)
-	y3_pred = clf.fit(X_train, e3[:335]).predict(X_test)
-	y4_pred = clf.fit(X_train, e4[:335]).predict(X_test)
-	y5_pred = clf.fit(X_train, e5[:335]).predict(X_test)
+	y1_pred = clf.fit(X_train, e1[:3350]).predict(X_test)
+	y2_pred = clf.fit(X_train, e2[:3350]).predict(X_test)
+	y3_pred = clf.fit(X_train, e3[:3350]).predict(X_test)
+	y4_pred = clf.fit(X_train, e4[:3350]).predict(X_test)
+	y5_pred = clf.fit(X_train, e5[:3350]).predict(X_test)
 
-	y_major_pred = clf.fit(X_train, major_pred[:335]).predict(X_test)
-	y_wei_pred = clf.fit(X_train, weight_pred[:335]).predict(X_test)
+	y_major_pred = clf.fit(X_train, major_pred[:3350]).predict(X_test)
+	y_wei_pred = clf.fit(X_train, weight_pred[:3350]).predict(X_test)
 
 
 ##############################
@@ -325,9 +321,9 @@ if __name__ == '__main__':
 	for i in range(4):
 		train_adaboost = np.concatenate((train_adaboost, X_train), axis=0)
 
-	y_sum = np.append(e1[:335], e2[:335])
-	y_sum = np.append(np.append(y_sum, e3[:335]), e4[:335])
-	y_sum = np.append(y_sum, e5[:335])
+	y_sum = np.append(e1[:3350], e2[:3350])
+	y_sum = np.append(np.append(y_sum, e3[:3350]), e4[:3350])
+	y_sum = np.append(y_sum, e5[:3350])
 
 	# Create adaboost classifer object
 
@@ -403,7 +399,7 @@ if __name__ == '__main__':
 	#worksheet.write(row, 0, "major_accuracy: "+ str(y_major_ac))
 	#worksheet.write(row+1, 0, "weight_accuracy: "+ str(y_wei_ac))
 
-
+	"""
 	workbook.close() 
 
 
