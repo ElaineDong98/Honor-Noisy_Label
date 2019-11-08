@@ -25,7 +25,7 @@ import pandas as pd
 #         output: prediction. 
 def majoriy(e1, e2, e3, e4, e5):
 	pred = []
-	for i in range(500):
+	for i in range(len(e1)):
 		if (e1[i] + e2[i] + e3[i] + e4[i] + e5[i] < 0):
 			pred.append(-1)
 		else:
@@ -55,7 +55,7 @@ def weight(e1, e2, e3, e4, e5):
 	c4 = 0
 	c5 = 0
 	pred = []
-	for i in range(500):
+	for i in range(len(e1)):
 		#print(w1, w2, w3)
 		#print(c1, c2, c3)
 		if(w1 * e1[i] + w2 * e2[i] + w3 * e3[i] + w4 * e4[i] + w5 * e5[i] > 0):
@@ -114,8 +114,8 @@ def create_features(size, neg_ratio):
 	interactive(False)
 	plt.show()
 
-	correct = np.ones((pos_num, 1), dtype=int)
-	correct = np.concatenate((correct, np.full((neg_num, 1), int(-1))), axis=0)
+	correct = [1] * pos_num
+	correct = np.concatenate((correct, [-1] * neg_num), axis=0)
 	x = np.concatenate((x1, x2), axis=0)
 	return x, correct
 
@@ -124,7 +124,7 @@ def create_features(size, neg_ratio):
 	# Adaboost: reference: https://github.com/jaimeps/adaboost-implementation/blob/master/adaboost.py
 	#error rate
 def get_error_rate(pred, Y):
-	return sum(pred != Y) / float(len(Y))
+	return (sum(pred != Y) / float(len(Y)))
 
 
 def generic_clf(Y_train, X_train, Y_test, X_test, clf):
@@ -195,17 +195,21 @@ def plot_error_rate(er_train, er_test, method):
 if __name__ == '__main__':
 
 	# x is (x1, x2), tag is 1/-1
-	x, tag = create_features(500, 0.9)
-	X_train, X_test, y_train, y_test = train_test_split(x, tag, test_size=0.33, random_state=15)
-
+	num_samples = 5000
+	x, tag = create_features(num_samples, 0.9)
+	#indice to keep track of which row of dataset is selected
+	indices = range(num_samples)
+	# indices_train,indices_test: ([1, 2, ...], [0, 3, ...])
+	# since i used random state, it will keep the same
+	X_train, X_test, y_train, y_test, ind_train, ind_test = train_test_split(x, tag, indices, test_size=0.33, random_state=15)
 	workbook = xlsxwriter.Workbook('result.xlsx') 
 	worksheet = workbook.add_worksheet() 
 	
-	e1 = np.random.choice([-1, 1], size=500, p=[.9, .1])
-	e2 = np.random.choice([-1, 1], size=500, p=[.75, .25])
-	e3 = np.random.choice([-1, 1], size=500, p=[.8, .2])
-	e4 = np.random.choice([-1, 1], size=500, p=[.85, .15])
-	e5 = np.random.choice([-1, 1], size=500, p=[.8, .2])
+	e1 = np.random.choice([-1, 1], size = num_samples, p=[.9, .1])
+	e2 = np.random.choice([-1, 1], size = num_samples, p=[.95, .05])
+	e3 = np.random.choice([-1, 1], size = num_samples, p=[.93, .07])
+	e4 = np.random.choice([-1, 1], size = num_samples, p=[.85, .15])
+	e5 = np.random.choice([-1, 1], size = num_samples, p=[.88, .12])
 	list_sum = [list(a) for a in zip(e1, e2, e3, e4, e5)]
 	major_pred = majoriy(e1, e2, e3, e4, e5)
 	weight_pred = weight(e1, e2, e3, e4, e5)
@@ -215,15 +219,15 @@ if __name__ == '__main__':
 	    x, major_pred, test_size=0.33, random_state=15)
 	X_train_wei, X_test_wei, y_train_wei, y_test_wei = train_test_split(
 	    x, weight_pred, test_size=0.33, random_state=15)
-
 	#Use adaboost for major and weghted
-	clf_tree = DecisionTreeClassifier(max_depth=3, random_state=1)
+	clf_tree = DecisionTreeClassifier(max_depth=2, random_state=1)
 	er_tree_maj = generic_clf(y_train_maj, X_train_maj,
 	                          y_test_maj, X_test_maj, clf_tree)
 	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
 	                          y_test_wei, X_test_wei, clf_tree)
 	er_tree_true = generic_clf(y_train, X_train,
                           y_test, X_test, clf_tree)
+	print(get_error_rate(y_train_maj, y_train))
 	# Fit Adaboost classifier using a decision tree as base estimator
     # Test with different number of iterations
 	er_train_maj, er_test_maj = [er_tree_maj[0]], [er_tree_maj[1]]
