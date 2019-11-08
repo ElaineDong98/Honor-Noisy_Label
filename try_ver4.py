@@ -124,7 +124,7 @@ def create_features(size, neg_ratio):
 	# Adaboost: reference: https://github.com/jaimeps/adaboost-implementation/blob/master/adaboost.py
 	#error rate
 def get_error_rate(pred, Y):
-	return sum(pred != Y) / float(len(Y));
+	return sum(pred != Y) / float(len(Y))
 
 
 def generic_clf(Y_train, X_train, Y_test, X_test, clf):
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 	    x, weight_pred, test_size=0.33, random_state=15)
 
 	#Use adaboost for major and weghted
-	clf_tree = DecisionTreeClassifier(max_depth=2, random_state=1)
+	clf_tree = DecisionTreeClassifier(max_depth=3, random_state=1)
 	er_tree_maj = generic_clf(y_train_maj, X_train_maj,
 	                          y_test_maj, X_test_maj, clf_tree)
 	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
