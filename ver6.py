@@ -240,29 +240,34 @@ if __name__ == '__main__':
 			list_experts[2].append(np.random.choice([-1, 1], p=[0.98, 0.02]))
 			list_experts[3].append(np.random.choice([-1, 1], p=[0.93, 0.07]))
 			list_experts[4].append(np.random.choice([-1, 1], p=[0.92, 0.08]))
-		elif -1.4112450758027875*x0 + 12.026225379013937 > x1:
-			list_experts[0].append(np.random.choice([-1, 1], p=[0.97, 0.03]))
-			list_experts[1].append(np.random.choice([-1, 1], p=[0.95, 0.05]))
-			list_experts[2].append(np.random.choice([-1, 1], p=[0.93, 0.07]))
-			list_experts[3].append(np.random.choice([-1, 1], p=[0.90, 0.10]))
-			list_experts[4].append(np.random.choice([-1, 1], p=[0.88, 0.12]))
+		elif -0.9312908502013819 * x0 + 7.532693738791448 > x1:
+			list_experts[0].append(np.random.choice([-1, 1], p=[0.96, 0.04]))
+			list_experts[1].append(np.random.choice([-1, 1], p=[0.94, 0.06]))
+			list_experts[2].append(np.random.choice([-1, 1], p=[0.92, 0.08]))
+			list_experts[3].append(np.random.choice([-1, 1], p=[0.89, 0.11]))
+			list_experts[4].append(np.random.choice([-1, 1], p=[0.87, 0.13]))
+		elif - 1.4112450758027875 * x0 + 12.026225379013937 > x1:
+			list_experts[0].append(np.random.choice([-1, 1], p=[0.81, 0.19]))
+			list_experts[1].append(np.random.choice([-1, 1], p=[0.79, 0.21]))
+			list_experts[2].append(np.random.choice([-1, 1], p=[0.78, 0.22]))
+			list_experts[3].append(np.random.choice([-1, 1], p=[0.75, 0.25]))
+			list_experts[4].append(np.random.choice([-1, 1], p=[0.73, 0.27]))
 		else:
 			for i in range(5):
 				list_experts[i].append(np.random.choice([-1, 1], p=[0.01, 0.99]))
-
 	#list_sum = [list(a) for a in zip(e1, e2, e3, e4, e5)]
 
 
-	for i in range(5):
-		plt.figure(i+2)
-		index = 0
-		for x1, x2 in x:
-			if list_experts[i][index] == 1:
-				plt.plot(x1, x2, 'r+', color='red', alpha=0.5)
-			if list_experts[i][index] == -1:
-				plt.plot(x1, x2, 'r.', color='blue', alpha=0.5)
-			index += 1
-		plt.show()
+	i = 2
+	plt.figure(i+2)
+	index = 0
+	for x1, x2 in x:
+		if list_experts[i][index] == 1:
+			plt.plot(x1, x2, 'r+', color='red', alpha=0.5)
+		if list_experts[i][index] == -1:
+			plt.plot(x1, x2, 'r.', color='blue', alpha=0.5)
+		index += 1
+	plt.show()
 
 	major_pred = majoriy(e1, e2, e3, e4, e5)
 	weight_pred = weight(e1, e2, e3, e4, e5)
