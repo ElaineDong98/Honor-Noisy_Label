@@ -19,7 +19,16 @@ from sklearn import tree
 import pandas as pd
 
 #new changes from ver 5: consider the relationship between our labels and the features
+#new changes from ver 6: initial weight for adaboost changed
 #from truthdiscovery import TruthFinder
+
+
+
+# #for future improvement
+# 1. change the weight and plot 
+# 2. read paper for gradient tree boosting
+# 3. not only 5 experts;  the possibility 
+# 4. snorkle to find labeling. Crowd sourcing 
 
 
 #majority input: decisions from all experts
@@ -138,16 +147,16 @@ def generic_clf(Y_train, X_train, Y_test, X_test, clf, y_true_train, y_true_test
 #adaboost
 
 
-def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf, Y_true_train, Y_true_test):
+def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf, Y_true_train, Y_true_test, weight):
 	n_train, n_test = len(X_train), len(X_test)
 	# Initialize weights
 	# w = array([1/n, 1/n, ... 1/n])
-	w = np.ones(n_train) / n_train
+	#w = np.ones(n_train) / n_train
 	pred_train, pred_test = [np.zeros(n_train), np.zeros(n_test)]
 	
 	for i in range(M):
 		# Fit a classifier with the specific weights
-		clf.fit(X_train, Y_train, sample_weight = w)
+		clf.fit(X_train, Y_train, sample_weight=weight)
 		pred_train_i = clf.predict(X_train)
 		pred_test_i = clf.predict(X_test)
 		# Indicator function
@@ -156,11 +165,11 @@ def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf, Y_true_train, Y_true_
 		# Equivalent miss with 1,-1 to update weights
 		miss2 = [x if x==1 else -1 for x in miss]
 		# Error
-		err_m = np.dot(w,miss) / sum(w)
+		err_m = np.dot(weight, miss) / sum(weight)
 		# Alpha
 		alpha_m = 0.5 * np.log( (1 - err_m) / max(1e-16, float(err_m)))
 		# New weights
-		w = np.multiply(w, np.exp([float(x) * alpha_m for x in miss2]))
+		weight = np.multiply(weight, np.exp([float(x) * alpha_m for x in miss2]))
 		# Add to prediction
 		pred_train = [sum(x) for x in zip(pred_train, 
 										[x * alpha_m for x in pred_train_i])]
@@ -206,7 +215,7 @@ def reorder(arr_train, arr_test, ind_train, ind_test):
 	return temp
 
 if __name__ == '__main__':
-
+	seed = 41
 	# x is (x1, x2), tag is 1/-1
 	num_samples = 5000
 	#####this line is to create random data (used before ver6)
@@ -257,21 +266,57 @@ if __name__ == '__main__':
 				list_experts[i].append(np.random.choice([-1, 1], p=[0.01, 0.99]))
 	#list_sum = [list(a) for a in zip(e1, e2, e3, e4, e5)]
 
-	i = 2
-	plt.figure(i+2)
-	index = 0
-	for x1, x2 in x:
-		if list_experts[i][index] == 1:
-			plt.plot(x1, x2, 'r+', color='red', alpha=0.5)
-		if list_experts[i][index] == -1:
-			plt.plot(x1, x2, 'r.', color='blue', alpha=0.5)
-		index += 1
-	plt.show()
+	# i = 2
+	# plt.figure(i+2)
+	# index = 0
+	# for x1, x2 in x:
+	# 	if list_experts[i][index] == 1:
+	# 		plt.plot(x1, x2, 'r+', color='red', alpha=0.5)
+	# 	if list_experts[i][index] == -1:
+	# 		plt.plot(x1, x2, 'r.', color='blue', alpha=0.5)
+	# 	index += 1
+	# plt.show()
 
 	major_pred = majoriy(e1, e2, e3, e4, e5)
 	weight_pred = weight(e1, e2, e3, e4, e5)
+	list_sum = [list(a) for a in zip(e1, e2, e3, e4, e5)]
 
-	#set up our inaccurate true label
+	##adjust the weight 
+	w = []
+	train_len = len(X_train)
+	sum5 = 0
+	sum4 = 0
+	sum3 = 0
+	index_w = 0
+	num = 0
+	for diag in list_sum:
+		if index_w in ind_train:
+			num += 1
+			if(sum(diag) == 5 or sum(diag) == -5):
+				sum5 += 1
+			if (sum(diag) == 3 or sum(diag) == -3):
+				sum4 += 1
+			if (sum(diag) == 1 or sum(diag) == -1):
+				sum3 += 1
+		index_w += 1
+
+	sumall = sum5*3 + sum4*2 + sum3
+
+	index_w = 0
+	for diag in list_sum:
+		if index_w in ind_train:
+			if(sum(diag) == 5 or sum(diag) == -5):
+				w.append(100)
+			if (sum(diag) == 3 or sum(diag) == -3):
+				w.append(10)
+			if (sum(diag) == 1 or sum(diag) == -1):
+				w.append(1)
+		index_w += 1
+	norm = [float(i)/sum(w) for i in w]
+
+	print("the initial weight is: ", norm, "length ", len(norm))
+
+	#set up our inaccurate true labe
 	X_train_maj, X_test_maj, y_train_maj, y_test_maj = train_test_split(
 	    x, major_pred, test_size=0.33, random_state=15)
 	X_train_wei, X_test_wei, y_train_wei, y_test_wei = train_test_split(
@@ -289,18 +334,17 @@ if __name__ == '__main__':
 	er_true_train_maj, er_true_test_maj = [er_tree_maj[2]], [er_tree_maj[3]]
 	er_true_train_wei, er_true_test_wei = [er_tree_wei[2]], [er_tree_wei[3]]
 	#x_range = 10, 35, 60, 85, ... 410
-	x_range = range(10, 460, 25)
-
+	x_range = range(10, 445, 25)
 	for i in x_range:
 		er_i_maj = adaboost_clf(y_train_maj, X_train_maj,
-		                        y_test_maj, X_test_maj, i, clf_tree, y_train, y_test)
+		                        y_test_maj, X_test_maj, i, clf_tree, y_train, y_test, weight = w)
 		er_train_maj.append(er_i_maj[0])
 		er_test_maj.append(er_i_maj[1])
 		er_true_train_maj.append(er_i_maj[2])
 		er_true_test_maj.append(er_i_maj[3])
 
 		er_i_wei = adaboost_clf(y_train_wei, X_train_wei,
-		                        y_test_wei, X_test_wei, i, clf_tree, y_train, y_test)
+		                        y_test_wei, X_test_wei, i, clf_tree, y_train, y_test, weight = w)
 		er_train_wei.append(er_i_wei[0])
 		er_test_wei.append(er_i_wei[1])
 		er_true_train_wei.append(er_i_wei[2])
