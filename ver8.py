@@ -21,9 +21,9 @@ from itertools import cycle
 from sklearn import tree
 import pandas as pd
 
-#new changes from ver 5: consider the relationship between our labels and the features
-#new changes from ver 6: initial weight for adaboost changed
-#new changes from ver 7: 
+#v6 new changes: consider the relationship between our labels and the features
+#v7 new changes: initial weight for adaboost changed
+#v8 new changes: used the truthdiscovery (truth finder)
 #from truthdiscovery import TruthFinder
 
 
