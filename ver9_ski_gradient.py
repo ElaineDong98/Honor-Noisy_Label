@@ -8,6 +8,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn import metrics
 from sklearn.metrics import auc   
 from sklearn.svm import SVC 
@@ -25,7 +26,7 @@ import pandas as pd
 #v9 new changes: only left "weighted" option. 
 # 				Saved the result for different initial weights
 #				Added a validation dataset to determine number of iteration
-
+# this version: used GradientBoostingClassifier from sklearn
 #from truthdiscovery import TruthFinder
 
 
@@ -38,6 +39,11 @@ import pandas as pd
 #  add more features 
 #  add noisy labels
 # 5. linnear discripmi analysis, descrminate analysis 
+# 6. Try Logistic, De Tree, Random Forest, SVM
+# 7. Add graph: Error , Presision, Recall, AUPRC
+# 8. Compare pla
+# 9. the best iteration rate is the earlist lowest rate. 
+# 10. Stochastic 
 
 #majority input: decisions from all experts
 #         output: prediction. 
@@ -198,8 +204,12 @@ def plot_error_rate(er_train, er_val, er_test, method):
 	df_error.columns = ['Training_'+method, 'Validation_'+method]
 	plot1 = df_error.plot(linewidth=3, figsize=(8, 6),
 						color=['lightblue', 'darkblue'], grid=True)
-	plot1.plot(x=er_test[0], y=er_test[1], kind='scatter', color = 'red',
-	           label='the error rate for test data')
+	df = pd.DataFrame({
+            'best_it': [(er_test[0]-10)/20 + 1],
+            'error_rate': [er_test[1]]
+        })
+	df.plot(x='best_it', y='error_rate', kind='scatter', color='red',
+	           label='the error rate for test data', ax = plot1)
 	plot1.set_xlabel('Number of iterations', fontsize=12)
 	plot1.set_xticklabels(range(0, 450, 50))
 	plot1.set_ylabel('Error rate', fontsize=12)
@@ -370,39 +380,43 @@ if __name__ == '__main__':
 	best_iter = 0
 	flag = False # to see if there is a vibration in error
 	for i in x_range:
+		clf = GradientBoostingClassifier(n_estimators = i, random_state = 15)
+		clf.fit(X_train_wei, y_train_wei, sample_weight= norm)
 		## er_i_maj = adaboost_clf(y_train_maj, X_train_maj,
 		##                         y_test_maj, X_test_maj, i, clf_tree, y_train, y_test, weight = w)
 		## er_train_maj.append(er_i_maj[0])
 		## er_test_maj.append(er_i_maj[1])
 		## er_true_train_maj.append(er_i_maj[2])
 		## er_true_test_maj.append(er_i_maj[3])
-		er_i_wei = adaboost_clf(y_train_wei, X_train_wei,
-								y_val_wei, X_val_wei, i, clf_tree, y_train, y_val, weight = w)
-		er_train_wei.append(er_i_wei[0])
-		er_val_wei.append(er_i_wei[1])
-		er_true_train_wei.append(er_i_wei[2])
-		er_true_val_wei.append(er_i_wei[3])
+		## er_i_wei = adaboost_clf(y_train_wei, X_train_wei,
+		## 						y_val_wei, X_val_wei, i, clf_tree, y_train, y_val, weight = w)
+		pred_i_wei_val = clf.predict(X_val_wei)
+		pred_i_wei_train = clf.predict(X_train_wei)
+		er_train_wei.append(get_error_rate(pred_i_wei_train, y_train_wei))
+		er_val_wei.append(get_error_rate(pred_i_wei_val, y_val_wei))
+		er_true_train_wei.append(get_error_rate(pred_i_wei_train, y_train))
+		er_true_val_wei.append(get_error_rate(pred_i_wei_val, y_val))
 		## er_i_find = adaboost_clf(y_train_find, X_train_find,
 		##                         y_test_find, X_test_find, i, clf_tree, y_train, y_test, weight=w)
 		## er_train_find.append(er_i_find[0])
 		## er_test_find.append(er_i_find[1])
 		## er_true_train_find.append(er_i_find[2])
 		## er_true_test_find.append(er_i_find[3])
-		if(low_error > er_i_wei[1]):  # this is compared to our y
-			low_error = er_i_wei[1]
+		if(low_error > er_val_wei[-1]):  # this is compared to our y
+			low_error = er_val_wei[-1]
 			best_iter = i
 			flag = False
-		elif (low_error == er_i_wei[1]):
+		elif (low_error == er_val_wei[-1]):
 			if flag == True:
 				best_iter = i
 		else:
 			flag = True
-		
-	error, error2, error3, er_true_test_wei, pred_train, pred_test = adaboost_clf(y_train_wei, X_train_wei,
-                                                                           y_test_wei, X_test_wei, best_iter, clf_tree, y_train, y_test, weight=w)
-
-
-
+	clf = GradientBoostingClassifier(n_estimators=best_iter, random_state=15)
+	clf.fit(X_train_wei, y_train_wei, sample_weight=norm)
+	pred_train = clf.predict(X_train_wei)
+	pred_test = clf.predict(X_test_wei)
+	er_true_test_wei = get_error_rate(pred_test, y_test)
+	er_test_wei = get_error_rate(pred_test, y_test_wei)
 	## pred_train = er_i_find[4]
 	## pred_test = er_i_find[5]
 	# Compare error rate vs number of iterations
@@ -410,8 +424,66 @@ if __name__ == '__main__':
 	#plot_error_rate(er_train_wei, er_test_wei,"Weighting vote label used in adaboost and calculating error ")
 	## plot_error_rate(er_true_train_maj, er_true_test_maj,
 	## 				"Majority vote label for adaboost; real true label as error detector")
+	
+
+	plot_error_rate(er_train_wei, er_val_wei, [best_iter, er_test_wei],
+                 "Weighting vote label for gradient (compare to predicted label)")
 	plot_error_rate(er_true_train_wei, er_true_val_wei, [best_iter, er_true_test_wei],
-					"Weighting vote label for adaboost")
+                 "Weighting vote label for gradient (compare to true label)")
+
+##############################################
+	er_train_wei_l, er_val_wei_l = [er_tree_wei[0]], [er_tree_wei[1]]
+	er_true_train_wei_l, er_true_val_wei_l = [er_tree_wei[2]], [er_tree_wei[3]]
+	learning_rates = [1, 0.5, 0.25, 0.1, 0.05, 0.01]
+	low_error = 1
+	best_lr = 0
+	best_lr_index = 0
+	index = -1
+	for eta in learning_rates:
+		index += 1
+		clf = GradientBoostingClassifier(n_estimators=best_iter, random_state=15, learning_rate=eta)
+		clf.fit(X_train_wei, y_train_wei, sample_weight=norm)
+		pred_i_wei_val = clf.predict(X_val_wei)
+		pred_i_wei_train = clf.predict(X_train_wei)
+
+		fpr, tpr, thresholds = roc_curve(y_train_wei, train_pred)
+		roc_auc = auc(fpr, tpr)
+		train_results.append(roc_auc)
+
+		er_train_wei_l.append(get_error_rate(pred_i_wei_train, y_train_wei))
+		er_val_wei_l.append(get_error_rate(pred_i_wei_val, y_val_wei))
+		er_true_train_wei_l.append(get_error_rate(pred_i_wei_train, y_train))
+		er_true_val_wei_l.append(get_error_rate(pred_i_wei_val, y_val))
+		if(low_error > er_val_wei_l[-1]):  # this is compared to our y
+			low_error = er_val_wei_l[-1]
+			best_lr = eta
+			print("best", best_lr)
+			best_lr_index = index
+	
+	clf = GradientBoostingClassifier(n_estimators=best_iter, random_state=15, learning_rate = best_lr)
+	clf.fit(X_train_wei, y_train_wei, sample_weight=norm)
+	pred_train = clf.predict(X_train_wei)
+	pred_test = clf.predict(X_test_wei)
+	er_true_test_wei = get_error_rate(pred_test, y_test)
+	er_test_wei = get_error_rate(pred_test, y_test_wei)
+	
+	df_error = pd.DataFrame([er_true_train_wei_l, er_true_val_wei_l]).T
+	df_error.columns = ['Training_', 'Validation_']
+	plot1 = df_error.plot(linewidth=3, figsize=(8, 6),
+                       color=['lightblue', 'darkblue'], grid=True)
+	df = pd.DataFrame({
+               'best_lr': [best_lr_index],
+               'error_rate': [er_true_test_wei]
+               })
+	df.plot(x='best_lr', y='error_rate', kind='scatter', color='red',
+         label='the error rate for test data', ax=plot1)
+	plot1.set_xlabel('learning rates', fontsize=12)
+	plot1.set_xticklabels(learning_rates)
+	plot1.set_ylabel('Error rate', fontsize=12)
+	plot1.set_title('Error rate vs learning rates\n', fontsize=16)
+	plt.show()
+
+
 	## plot_error_rate(er_true_train_find, er_true_test_find,
 	## 				"TruthFind label for adaboost; real true label as error detector")
 
@@ -494,7 +566,7 @@ if __name__ == '__main__':
 	for i in range(num_samples): 
 		column = 0
 		# write operation perform 
-		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], e1[i], e2[i], e3[i], e4[i], e5[i])
+		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], e1[i], e2[i], e3[i], e4[i], e5[i]])
 		row += 1
 	#worksheet.write(row, 0, "major_accuracy: "+ str(y_major_ac))
 	#worksheet.write(row+1, 0, "weight_accuracy: "+ str(y_wei_ac))
