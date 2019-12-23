@@ -116,6 +116,7 @@ def create_features(size, neg_ratio):
 	mu2 = np.array([[1.3, 1.3]])
 	Sigma2 = np.array([[1.2, 1], [0.9, 1.8]])
 	R2 = cholesky(Sigma2)
+	np.random.seed(415)
 	x2 = np.dot(np.random.randn(neg_num, 2), R2) + mu2
 	plt.plot(x2[:,0],x2[:,1],'r.', color = 'blue', alpha=0.5)
 	#positive
@@ -124,7 +125,6 @@ def create_features(size, neg_ratio):
 	R1 = cholesky(Sigma1)
 	x1 = np.dot(np.random.randn(pos_num, 2), R1) + mu1
 	plt.plot(x1[:, 0], x1[:, 1], 'r+', color='red', alpha=0.5)
-
 	plt.show()
 
 	correct = [1] * pos_num
@@ -143,13 +143,13 @@ def get_error_rate(pred, Y):
 
 
 def generic_clf(Y_train, X_train, Y_test, X_test, clf, y_true_train, y_true_test):
-    clf.fit(X_train, Y_train)
-    pred_train = clf.predict(X_train)
-    pred_test = clf.predict(X_test)
-    return get_error_rate(pred_train, Y_train), \
-        get_error_rate(pred_test, Y_test), \
-        get_error_rate(pred_train, y_true_train), \
-        get_error_rate(pred_test, y_true_test)
+	clf.fit(X_train, Y_train)
+	pred_train = clf.predict(X_train)
+	pred_test = clf.predict(X_test)
+	return get_error_rate(pred_train, Y_train), \
+		get_error_rate(pred_test, Y_test), \
+		get_error_rate(pred_train, y_true_train), \
+		get_error_rate(pred_test, y_true_test)
 #adaboost
 
 
@@ -187,8 +187,8 @@ def adaboost_clf(Y_train, X_train, Y_test, X_test, M, clf, Y_true_train, Y_true_
 	# Return error rate in train and test set
 	return get_error_rate(pred_train, Y_train), \
 		get_error_rate(pred_test, Y_test), \
-            get_error_rate(pred_train, Y_true_train), \
-            get_error_rate(pred_test, Y_true_test), pred_train, pred_test
+			get_error_rate(pred_train, Y_true_train), \
+			get_error_rate(pred_test, Y_true_test), pred_train, pred_test
 
 
 def plot_error_rate(er_train, er_test, method):
@@ -209,7 +209,7 @@ def reorder(arr_train, arr_test, ind_train, ind_test):
 	n = len(arr_train) + len(arr_test)
 	temp = [0] * n
 	# arr[i] should be
-    # present at index[i] index
+	# present at index[i] index
 	for i in range(0, len(arr_train)):
 		temp[ind_train[i]] = arr_train[i]
 	for i in range(0, len(arr_test)):
@@ -225,7 +225,6 @@ if __name__ == '__main__':
 	num_samples = 5000
 	#####this line is to create random data (used before ver6)
 	x, tag = create_features(num_samples, 0.9)
-	####
 	#indice to keep track of which row of dataset is selected
 	indices = range(num_samples)
 	# indices_train,indices_test: ([1, 2, ...], [0, 3, ...])
@@ -296,11 +295,11 @@ if __name__ == '__main__':
 			claims['value'].append(list_sum[j][i])
 	claims = pd.DataFrame(data=claims)
 	trust_df, truth_df = truthFinder.truthfinder(claims,
-                          imp_func=truthFinder.imp,
-                          initial_trust=0.9,
-                          similarity_threshold=(1 - 1e-05),
-                          dampening_factor=0.3,
-                          verbose=False)
+						  imp_func=truthFinder.imp,
+						  initial_trust=0.9,
+						  similarity_threshold=(1 - 1e-05),
+						  dampening_factor=0.3,
+						  verbose=False)
 	find_pred = []
 	find_pred.append(truth_df["value"][0])
 	conf = truth_df["confidence"][0]
@@ -318,24 +317,6 @@ if __name__ == '__main__':
 	##adjust the weight 
 	w = []
 	train_len = len(X_train)
-	sum5 = 0
-	sum4 = 0
-	sum3 = 0
-	index_w = 0
-	num = 0
-	for diag in list_sum:
-		if index_w in ind_train:
-			num += 1
-			if(sum(diag) == 5 or sum(diag) == -5):
-				sum5 += 1
-			if (sum(diag) == 3 or sum(diag) == -3):
-				sum4 += 1
-			if (sum(diag) == 1 or sum(diag) == -1):
-				sum3 += 1
-		index_w += 1
-
-	sumall = sum5*3 + sum4*2 + sum3
-
 	index_w = 0
 	for diag in list_sum:
 		if index_w in ind_train:
@@ -350,65 +331,65 @@ if __name__ == '__main__':
 
 	#print("the initial weight is: ", norm, "length ", len(norm))
 	#set up our inaccurate true labe
-	X_train_maj, X_test_maj, y_train_maj, y_test_maj = train_test_split(
-	    x, major_pred, test_size=0.33, random_state=15)
+	## X_train_maj, X_test_maj, y_train_maj, y_test_maj = train_test_split(
+	##     x, major_pred, test_size=0.33, random_state=15)
 	X_train_wei, X_test_wei, y_train_wei, y_test_wei = train_test_split(
-	    x, weight_pred, test_size=0.33, random_state=15)
-	X_train_find, X_test_find, y_train_find, y_test_find = train_test_split(
-            x, find_pred, test_size=0.33, random_state=15)
+		x, weight_pred, test_size=0.33, random_state=15)
+	## X_train_find, X_test_find, y_train_find, y_test_find = train_test_split(
+	##         x, find_pred, test_size=0.33, random_state=15)
 	#Use adaboost for major and weghted
 	clf_tree = DecisionTreeClassifier(max_depth=3, random_state=1)
-	er_tree_maj = generic_clf(y_train_maj, X_train_maj,
-	                          y_test_maj, X_test_maj, clf_tree, y_train, y_test)
+	## er_tree_maj = generic_clf(y_train_maj, X_train_maj,
+	##                           y_test_maj, X_test_maj, clf_tree, y_train, y_test)
 	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
-	                          y_test_wei, X_test_wei, clf_tree, y_train, y_test)
-	er_tree_find = generic_clf(y_train_find, X_train_find, y_test_find, X_test_find, clf_tree, y_train, y_test)
+							  y_test_wei, X_test_wei, clf_tree, y_train, y_test)
+	## er_tree_find = generic_clf(y_train_find, X_train_find, y_test_find, X_test_find, clf_tree, y_train, y_test)
 	# Fit Adaboost classifier using a decision tree as base estimator
-    # Test with different number of iterations
-	er_train_maj, er_test_maj = [er_tree_maj[0]], [er_tree_maj[1]]
+	# Test with different number of iterations
+	## er_train_maj, er_test_maj = [er_tree_maj[0]], [er_tree_maj[1]]
 	er_train_wei, er_test_wei = [er_tree_wei[0]], [er_tree_wei[1]]
-	er_train_find, er_test_find = [er_tree_find[0]], [er_tree_find[1]]
-	er_true_train_maj, er_true_test_maj = [er_tree_maj[2]], [er_tree_maj[3]]
+	## er_train_find, er_test_find = [er_tree_find[0]], [er_tree_find[1]]
+	## er_true_train_maj, er_true_test_maj = [er_tree_maj[2]], [er_tree_maj[3]]
 	er_true_train_wei, er_true_test_wei = [er_tree_wei[2]], [er_tree_wei[3]]
-	er_true_train_find, er_true_test_find = [er_tree_find[2]], [er_tree_find[3]]
+	##er_true_train_find, er_true_test_find = [er_tree_find[2]], [er_tree_find[3]]
 	#x_range = 10, 35, 60, 85, ... 410
 	x_range = range(10, 445, 25)
 	for i in x_range:
-		er_i_maj = adaboost_clf(y_train_maj, X_train_maj,
-		                        y_test_maj, X_test_maj, i, clf_tree, y_train, y_test, weight = w)
-		er_train_maj.append(er_i_maj[0])
-		er_test_maj.append(er_i_maj[1])
-		er_true_train_maj.append(er_i_maj[2])
-		er_true_test_maj.append(er_i_maj[3])
+		## er_i_maj = adaboost_clf(y_train_maj, X_train_maj,
+		##                         y_test_maj, X_test_maj, i, clf_tree, y_train, y_test, weight = w)
+		## er_train_maj.append(er_i_maj[0])
+		## er_test_maj.append(er_i_maj[1])
+		## er_true_train_maj.append(er_i_maj[2])
+		## er_true_test_maj.append(er_i_maj[3])
 
 		er_i_wei = adaboost_clf(y_train_wei, X_train_wei,
-		                        y_test_wei, X_test_wei, i, clf_tree, y_train, y_test, weight = w)
+								y_test_wei, X_test_wei, i, clf_tree, y_train, y_test, weight = w)
 		er_train_wei.append(er_i_wei[0])
 		er_test_wei.append(er_i_wei[1])
 		er_true_train_wei.append(er_i_wei[2])
 		er_true_test_wei.append(er_i_wei[3])
 
-		er_i_find = adaboost_clf(y_train_find, X_train_find,
-		                        y_test_find, X_test_find, i, clf_tree, y_train, y_test, weight=w)
-		er_train_find.append(er_i_find[0])
-		er_test_find.append(er_i_find[1])
-		er_true_train_find.append(er_i_find[2])
-		er_true_test_find.append(er_i_find[3])
+		## er_i_find = adaboost_clf(y_train_find, X_train_find,
+		##                         y_test_find, X_test_find, i, clf_tree, y_train, y_test, weight=w)
+		## er_train_find.append(er_i_find[0])
+		## er_test_find.append(er_i_find[1])
+		## er_true_train_find.append(er_i_find[2])
+		## er_true_test_find.append(er_i_find[3])
 
 	pred_train = er_i_wei[4]
 	pred_test = er_i_wei[5]
 
-	pred_train = er_i_find[4]
-	pred_test = er_i_find[5]
+	## pred_train = er_i_find[4]
+	## pred_test = er_i_find[5]
 	# Compare error rate vs number of iterations
 	#plot_error_rate(er_train_maj, er_test_maj,"Majority vote label used in adaboost and calculating error")
 	#plot_error_rate(er_train_wei, er_test_wei,"Weighting vote label used in adaboost and calculating error ")
-	plot_error_rate(er_true_train_maj, er_true_test_maj,
-	                "Majority vote label for adaboost; real true label as error detector")
+	## plot_error_rate(er_true_train_maj, er_true_test_maj,
+	## 				"Majority vote label for adaboost; real true label as error detector")
 	plot_error_rate(er_true_train_wei, er_true_test_wei,
-	                "Weighting vote label for adaboost; real true label as error detector")
-	plot_error_rate(er_true_train_find, er_true_test_find,
-					"TruthFind label for adaboost; real true label as error detector")
+					"Weighting vote label for adaboost; real true label as error detector")
+	## plot_error_rate(er_true_train_find, er_true_test_find,
+	## 				"TruthFind label for adaboost; real true label as error detector")
 
 	########################################
 	
@@ -425,19 +406,19 @@ if __name__ == '__main__':
 	#svc=SVC(probability=True, kernel='linear')
 	abc = AdaBoostClassifier(n_estimators=200, base_estimator=DecisionTreeClassifier(
 		max_depth=2), learning_rate=1)
-	offi_maj = abc.fit(X_train_maj, y_train_maj)
-	y_maj_tr_pred_ada = offi_maj.predict(X_train_maj)
-	y_maj_te_pred_ada = offi_maj.predict(X_test_wei)
-	er_train_maj = get_error_rate(y_maj_tr_pred_ada, y_train_maj)
-	er_test_maj = get_error_rate(y_maj_te_pred_ada, y_test_maj)
-	print("train eror rate", er_train_maj, "test error eate", er_test_maj)
+	offi_wei = abc.fit(X_train_wei, y_train_wei)
+	y_wei_tr_pred_ada = offi_wei.predict(X_train_wei)
+	y_wei_te_pred_ada = offi_wei.predict(X_test_wei)
+	er_train_wei = get_error_rate(y_wei_tr_pred_ada, y_train_wei)
+	er_test_wei = get_error_rate(y_wei_te_pred_ada, y_test_wei)
+	print("train eror rate", er_train_wei, "test error eate", er_test_wei)
 	"""
 	plot_error_rate(er_train_wei, er_test_wei,
-                 "offi: Weighting vote label for adaboost & calculate error ")
+				 "offi: Weighting vote label for adaboost & calculate error ")
 	plot_error_rate(er_true_train_maj, er_true_test_maj,
-                 "offi: Majority vote label for adaboost; real true label as error detector")
+				 "offi: Majority vote label for adaboost; real true label as error detector")
 	plot_error_rate(er_true_train_wei, er_true_test_wei,
-                 "offi: Weighting vote label for adaboost; real true label as error detector")
+				 "offi: Weighting vote label for adaboost; real true label as error detector")
 	"""
 
 ##############################
@@ -465,9 +446,9 @@ if __name__ == '__main__':
 	lw = 2
 	colors = cycle(['aqua', 'darkorange', 'cornflowerblue', "hotpink", "green", "red", "darkred", "pink"])
 	for i, color in zip(range(8), colors):
-	    plt.plot(recall[i], prec[i], color=color, lw=lw,
-	             label='ROC curve of class {0} (area = {1:0.2f})'
-	             ''.format(i, recall_auc[i]))
+		plt.plot(recall[i], prec[i], color=color, lw=lw,
+				 label='ROC curve of class {0} (area = {1:0.2f})'
+				 ''.format(i, recall_auc[i]))
 	
 	plt.plot([0, 1], [0, 1], 'k--', lw=lw)
 	plt.xlim([0.0, 1.0])
