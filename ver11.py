@@ -6,12 +6,14 @@ from mpl_toolkits import mplot3d
 from matplotlib import interactive
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import svm, datasets
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn import metrics
-from sklearn.metrics import auc   
+from sklearn.metrics import classification_report, roc_curve, auc, roc_auc_score
 from sklearn.svm import SVC 
 from sklearn.tree import DecisionTreeClassifier
 from scipy.spatial.distance import cosine
@@ -22,6 +24,8 @@ import truthFinder
 from itertools import cycle
 from sklearn import tree
 import pandas as pd
+
+
 
 #v6 new changes:  consider the relationship between our labels and the features
 #v7 new changes:  initial weight for adaboost changed
@@ -49,6 +53,15 @@ import pandas as pd
 # 8. Compare pla
 # 9. the best iteration rate is the earlist lowest rate. 
 # 10. Stochastic 
+
+
+# class_weight = "balanced"
+
+# truth is known 
+# experts different 
+# record the performance for different initial weights
+# AMIA
+
 
 #majority input: decisions from all experts
 #         output: prediction. 
@@ -109,7 +122,7 @@ def create_features(size, neg_ratio):
 	#negative
 	# ten features now
 	x2, y = make_blobs(n_samples=neg_num, centers=1, n_features=10,
-	                   random_state=0, cluster_std=2.1, center_box=(1, 1), shuffle=True)
+	                   random_state=0, cluster_std=2.1, center_box=(1.2, 1.2), shuffle=True)
 	ax.scatter3D(x2[:, 0], x2[:, 1], x2[:, 2], 'r.', color='blue', alpha=0.5)
 	#positive
 	x1, y = make_blobs(n_samples=pos_num, centers=1, n_features=10,
@@ -204,7 +217,7 @@ def plot_error_rate(er_train, er_val, er_test, method):
 	########################################
 def reorder(arr_train, arr_test, ind_train, ind_test):
 	n = len(arr_train) + len(arr_test)
-	temp = [0] * n
+	temp = [0] * 5000
 	# arr[i] should be
 	# present at index[i] index
 	for i in range(0, len(arr_train)):
@@ -217,6 +230,7 @@ def reorder(arr_train, arr_test, ind_train, ind_test):
 
 
 if __name__ == '__main__':
+
 	random.seed(9001)
 	# x is (x1, x2), tag is 1/-1
 	num_samples = 5000
@@ -226,7 +240,6 @@ if __name__ == '__main__':
 	indices = range(num_samples)
 	# indices_train,indices_test: ([1, 2, 6 ...], [0, 3, 4, 5, ...])
 	# since i used random state, it will keep the same
-
 	#train:validation:test = 0.6 : 0.2 : 0.2
 	X_train, X_test, y_train, y_test, ind_train, ind_test = train_test_split(
 		x, tag, indices, test_size=0.2, random_state=15)
@@ -236,17 +249,17 @@ if __name__ == '__main__':
 	worksheet = workbook.add_worksheet() 
 	
 	list_experts = [[],[],[],[],[],[],[],[],[],[]]
-	list_dif_experts = [0.004, 0.09, 0.1, 0.13, 0.024, 0.07, 0.2, 0.01, 0.18, 0.08]
+	list_dif_experts = [0.08, 0.11, 0.22, 0.25, 0.34, 0.37, 0.45, 0.49, 0.52, 0.64]
 	for point in x:
 		dist_pos = distance.euclidean([1, 1, 1, 1, 1, 1, 1, 1, 1, 1], point)
 		dist_neg = distance.euclidean([5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5], point)
 		if dist_pos - dist_neg < -4: 
 			for i in range(10):
 				list_experts[i].append(np.random.choice(
-					[-1, 1], p=[0.995-list_dif_experts[i]/5, 0.005+list_dif_experts[i]/5]))
+					[-1, 1], p=[0.99-list_dif_experts[i]/5, 0.01+list_dif_experts[i]/5]))
 		elif dist_pos - dist_neg < -1:
 			for i in range(10):
-				list_experts[i].append(np.random.choice([-1, 1], p=[0.97-list_dif_experts[i], 0.03+list_dif_experts[i]]))
+				list_experts[i].append(np.random.choice([-1, 1], p=[0.9-list_dif_experts[i], 0.1+list_dif_experts[i]]))
 		elif dist_pos - dist_neg < 4.5:
 			for i in range(10):
 				list_experts[i].append(np.random.choice(
@@ -258,25 +271,29 @@ if __name__ == '__main__':
 		else: 
 			for i in range(10):
 				list_experts[i].append(np.random.choice(
-					[-1, 1], p=[0.01-list_dif_experts[i]/20, 0.99+list_dif_experts[i]/20]))
+					[-1, 1], p=[0.1-list_dif_experts[i]/20, 0.9+list_dif_experts[i]/20]))
 	#list_experts: [[all prediction by expert1],[ .. expert 2], ...  ]
 	#list_sum: [[all experts prediction for the first object][...for 2nd object]]
 	list_sum = [list(a) for a in zip(*list_experts)]
 
+
+##########################
+#draw the experts' choices
 	i = 0
-	plt.figure(3)
-	ax = plt.axes(projection='3d')
+	# plt.figure(3)
+	# ax = plt.axes(projection='3d')
 	result = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 	index = 0
 	for each in x:
 		for i in range(10):
 			if list_experts[i][index] == tag[index]:
 			 	result[i] += 1
-			# if list_experts[i][index] == 1:
-			# 	ax.scatter3D(each[0], each[1], each[2], 'r+', color='red', alpha=0.5)
-			# if list_experts[i][index] == -1:
-			# 	ax.scatter3D(each[0], each[1], each[2], 'r.', color='blue', alpha=0.5)
+		# 	if list_experts[i][index] == 1:
+		# 		ax.scatter3D(each[0], each[1], each[2], 'r+', color='red', alpha=0.5)
+		# 	if list_experts[i][index] == -1:
+		# 		ax.scatter3D(each[0], each[1], each[2], 'r.', color='blue', alpha=0.5)
 		index += 1
+##########################
 	print("accuracy: ", [accuracy / len(tag) for accuracy in result])
 	# plt.show()
 	#### Use truthFinder
@@ -341,13 +358,18 @@ if __name__ == '__main__':
 	##         x, find_pred, test_size=0.33, random_state=15)
 	#Use adaboost for major and weghted
 	clf_tree = DecisionTreeClassifier(max_depth=3, random_state=1)
+	clf_rf = RandomForestClassifier(max_depth=2, random_state=0)
+	clf_rf.fit(X_train_wei, y_train_wei)
 	## er_tree_maj = generic_clf(y_train_maj, X_train_maj,
 	##                           y_test_maj, X_test_maj, clf_tree, y_train, y_test)
 	er_tree_wei = generic_clf(y_train_wei, X_train_wei,
 							  y_val_wei, X_val_wei, clf_tree, y_train, y_val)
-	baseline = generic_clf(y_train_wei, X_train_wei,
+	baseline_tree = generic_clf(y_train_wei, X_train_wei,
                         y_test_wei, X_test_wei, clf_tree, y_train, y_test)
-	print("----baseline using decision tree----\nthe accurary is:", str(1-baseline[3]), "\n----------------")
+	
+	baseline_rd = clf_rf.predict(X_test_wei)
+	print("----baseline ----\nthe accurary is:",
+	      str(1-baseline_tree[3]), " for DT\n", str(1-get_error_rate(baseline_rd, y_test)), "for RF")
 	## er_tree_find = generic_clf(y_train_find, X_train_find, y_test_find, X_test_find, clf_tree, y_train, y_test)
 	# Fit Adaboost classifier using a decision tree as base estimator
 	# Test with different number of iterations
@@ -361,7 +383,7 @@ if __name__ == '__main__':
 	low_error = 1
 	best_iter = 0
 	for i in x_range:
-		clf = GradientBoostingClassifier(n_estimators = i, random_state = 15)
+		clf = AdaBoostClassifier(n_estimators = i, random_state = 15)
 		clf.fit(X_train_wei, y_train_wei, sample_weight= norm)
 		## er_i_maj = adaboost_clf(y_train_maj, X_train_maj,y_test_maj, X_test_maj, i, clf_tree, y_train, y_test, weight = w)
 		## er_train_maj.append(er_i_maj[0])
@@ -384,7 +406,7 @@ if __name__ == '__main__':
 		if(low_error > er_val_wei[-1]):  # this is compared to our y
 			low_error = er_val_wei[-1]
 			best_iter = i
-	clf = GradientBoostingClassifier(n_estimators=best_iter, random_state=15)
+	clf = AdaBoostClassifier(n_estimators=best_iter, random_state=15)
 	clf.fit(X_train_wei, y_train_wei, sample_weight=norm)
 	pred_train = clf.predict(X_train_wei)
 	pred_test = clf.predict(X_test_wei)
@@ -401,6 +423,7 @@ if __name__ == '__main__':
 	plot_error_rate(er_true_train_wei, er_true_val_wei, [best_iter, er_true_test_wei],
                  "Weighted vote label for gradient (compare to true label)")
 
+
 ##############################################
 	er_train_wei_l, er_val_wei_l = [er_tree_wei[0]], [er_tree_wei[1]]
 	er_true_train_wei_l, er_true_val_wei_l = [er_tree_wei[2]], [er_tree_wei[3]]
@@ -411,7 +434,7 @@ if __name__ == '__main__':
 	index = -1
 	for eta in learning_rates:
 		index += 1
-		clf = GradientBoostingClassifier(n_estimators=best_iter, random_state=15, learning_rate=eta)
+		clf = AdaBoostClassifier(n_estimators=best_iter, random_state=15, learning_rate=eta)
 		clf.fit(X_train_wei, y_train_wei, sample_weight=norm)
 		pred_i_wei_val = clf.predict(X_val_wei)
 		pred_i_wei_train = clf.predict(X_train_wei)
@@ -425,14 +448,67 @@ if __name__ == '__main__':
 			best_lr = eta
 			best_lr_index=index
 	
-	clf = GradientBoostingClassifier(n_estimators=best_iter, random_state=15, learning_rate = best_lr)
+	clf = AdaBoostClassifier(n_estimators=best_iter, random_state=15, learning_rate = best_lr)
 	clf.fit(X_train_wei, y_train_wei, sample_weight=norm)
+	y_score = clf.decision_function(X_test_wei)
+
+	# y_score = clf.fit(X_train_wei, y_train_wei,
+	#                    sample_weight=norm).decision_function(X_test_wei)
+	# fpr = dict()
+	# tpr = dict()
+	# roc_auc = dict()
+	# for i in range(10):
+	# 	fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
+	# 	roc_auc[i] = auc(fpr[i], tpr[i])
+	# lw = 2
+	# plt.plot(fpr[2], tpr[2], color='darkorange',
+	# 		lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[2])
+	# plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+	# plt.xlim([0.0, 1.0])
+	# plt.ylim([0.0, 1.05])
+	# plt.xlabel('False Positive Rate')
+	# plt.ylabel('True Positive Rate')
+	# plt.title('Receiver operating characteristic example')
+	# plt.legend(loc="lower right")
+	# plt.show()
+
+
 	pred_train = clf.predict(X_train_wei)
 	pred_test = clf.predict(X_test_wei)
 	er_true_test_wei = get_error_rate(pred_test, y_test)
 	er_test_wei = get_error_rate(pred_test, y_test_wei)
 	print("Using the best (iteration, learning rate)= ("+ str(best_iter) + ", " + str(best_lr) + "),\nthe error rate is: ", er_true_test_wei)
-	
+		
+
+	fpr, tpr, thresholds = roc_curve(y_test, pred_test)
+	roc_auc = auc(fpr, tpr)
+	plt.plot(fpr, tpr, color='darkorange', lw=1,
+          label='ROC curve (area = %f)' % roc_auc)
+	plt.plot([0, 1], [0, 1], 'r--')
+	plt.xlim([-0.1, 1.2])
+	plt.ylim([-0.1, 1.2])
+	plt.xlabel('False Positive Rate')
+	plt.ylabel('True Positive Rate')
+	plt.title('Receiver operating characteristic')
+	plt.legend(loc="lower right")
+	plt.show()
+
+
+
+
+
+	# plt.show()
+	# plt.plot(fpr[2], tpr[2], color='darkorange',
+    #       lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[2])
+	# plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+	# plt.xlim([0.0, 1.0])
+	# plt.ylim([0.0, 1.05])
+	# plt.xlabel('False Positive Rate')
+	# plt.ylabel('True Positive Rate')
+	# plt.title('Receiver operating characteristic example')
+	# plt.legend(loc="lower right")
+	# plt.show()
+
 	"""
 	df_error = pd.DataFrame([er_true_train_wei_l, er_true_val_wei_l]).T
 	df_error.columns = ['Training_', 'Validation_']
@@ -466,23 +542,61 @@ if __name__ == '__main__':
 
 	# Create adaboost classifer object
 	#svc=SVC(probability=True, kernel='linear')
-	clf_ttt = GradientBoostingClassifier(
+	gbc = GradientBoostingClassifier(
 		n_estimators=best_iter, random_state=15, learning_rate=best_lr)
+	offi_wei = gbc.fit(X_train_wei, y_train_wei, sample_weight= norm)
+	y_wei_train_pred_gbdt = offi_wei.predict(X_train_wei)
+	y_wei_val_pred_gbdt = offi_wei.predict(X_val_wei)
+	er_train_wei_pred_gbdt = get_error_rate(y_wei_train_pred_gbdt, y_train_wei)
+	er_val_wei_pred_gbdt = get_error_rate(y_wei_val_pred_gbdt, y_test_wei)
+	##############################################
+	er_train_wei_l, er_val_wei_l, er_true_train_wei_l, er_true_val_wei_l = [], [], [],[]
+	subsampling = [0.6, 0.7, 0.8, 0.9, 1.0]
+	low_error = 1
+	best_sub = 0
+	best_sub_index = 0
+	index = -1
+	for sub_s in subsampling:
+		index += 1
+		gb = GradientBoostingClassifier(
+			n_estimators=100, random_state=15, learning_rate=0.1, subsample = sub_s)
+		gb.fit(X_train_wei, y_train_wei, sample_weight=norm)
+		pred_i_wei_val = gb.predict(X_val_wei)
+		pred_i_wei_train = gb.predict(X_train_wei)
 
-	abc = AdaBoostClassifier(n_estimators=300, base_estimator=DecisionTreeClassifier(
-		max_depth=3), learning_rate=1)
-	offi_wei = abc.fit(X_train_wei, y_train_wei, sample_weight= None)
-	weight_wei = abc.fit(X_train_wei, y_train_wei, sample_weight = norm)
-	y_wei_train_pred_ada = offi_wei.predict(X_train_wei)
-	y_wei_val_pred_ada = offi_wei.predict(X_val_wei)
-	er_train_wei = get_error_rate(y_wei_train_pred_ada, y_train_wei)
-	er_val_wei = get_error_rate(y_wei_val_pred_ada, y_test_wei)
-	print("train eror rate", er_train_wei, "test error eate", er_val_wei)
-	y_wei_train_pred_ada = weight_wei.predict(X_train_wei)
-	y_wei_val_pred_ada = weight_wei.predict(X_val_wei)
-	er_train_wei = get_error_rate(y_wei_train_pred_ada, y_train_wei)
-	er_val_wei = get_error_rate(y_wei_val_pred_ada, y_test_wei)
-	print("train eror rate with changed weight", er_train_wei, "test error eate", er_val_wei)
+		er_train_wei_l.append(get_error_rate(pred_i_wei_train, y_train_wei))
+		er_val_wei_l.append(get_error_rate(pred_i_wei_val, y_val_wei))
+		er_true_train_wei_l.append(get_error_rate(pred_i_wei_train, y_train))
+		er_true_val_wei_l.append(get_error_rate(pred_i_wei_val, y_val))
+		if(low_error > er_val_wei_l[-1]):  # this is compared to our y
+			low_error = er_val_wei_l[-1]
+			best_sub = sub_s
+			best_sub_index = index
+	clf = GradientBoostingClassifier(
+            n_estimators=100, random_state=15, learning_rate=0.1, subsample=best_sub)
+	clf.fit(X_train_wei, y_train_wei, sample_weight=norm)
+	pred_train = clf.predict(X_train_wei)
+	pred_test_g = clf.predict(X_test_wei)
+	er_true_test_wei = get_error_rate(pred_test_g, y_test)
+	er_test_wei = get_error_rate(pred_test_g, y_test_wei)
+	print("Using the best subsample = " + str(best_sub) +"\nthe error rate is: ", er_true_test_wei)
+
+	df_error = pd.DataFrame([er_true_train_wei_l, er_true_val_wei_l]).T
+	df_error.columns = ['Training_', 'Validation_']
+	plot1 = df_error.plot(linewidth=3, figsize=(8, 6),
+                       color=['lightblue', 'darkblue'], grid=True)
+	df = pd.DataFrame({
+            'best_sub': [best_sub_index],
+            'error_rate': [er_true_test_wei]
+        })
+	df.plot(x='best_sub', y='error_rate', kind='scatter', color='red',
+         label='the error rate for test data', ax=plot1)
+	plot1.set_xlabel('subsample', fontsize=12)
+	plot1.set_xticklabels(subsampling)
+	plot1.set_ylabel('Error rate', fontsize=12)
+	plot1.set_title('Error rate vs subsample\n', fontsize=16)
+	plt.show()
+
 	"""
 	plot_error_rate(er_train_wei, er_test_wei,
 				 "offi: Weighting vote label for adaboost & calculate error ")
@@ -492,9 +606,19 @@ if __name__ == '__main__':
 				 "offi: Weighting vote label for adaboost; real true label as error detector")
 	"""
 
-	fpr, tpr, thresholds = metrics.roc_curve(y_train_wei, train_pred)
+	fpr, tpr, thresholds = roc_curve(y_test, pred_test_g)
 	roc_auc = auc(fpr, tpr)
-	train_results.append(roc_auc)
+
+	plt.plot(fpr, tpr, color='darkorange', lw=1,
+          label='ROC curve (area = %f)' % roc_auc)
+	plt.plot([0, 1], [0, 1], 'r--')
+	plt.xlim([-0.1, 1.2])
+	plt.ylim([-0.1, 1.2])
+	plt.xlabel('False Positive Rate')
+	plt.ylabel('True Positive Rate')
+	plt.title('Receiver operating characteristic')
+	plt.legend(loc="lower right")
+	plt.show()
 
 ##############################
 	"""
@@ -538,14 +662,14 @@ if __name__ == '__main__':
 	"""
 	row = 0
 	column = 0
-	worksheet.write_row('A1', ["x1", "x2", "correct tag", "e1", "e2", "e3", "e4", "e5", "ada_pred"])
+	worksheet.write_row('A1', ["x1", "x2", "correct tag", "e1", "e2", "e3", "e4", "e5","e6","e7","e8","e9","e10", "ada_pred", "gradient_pred"])
 	row += 1
 	# iterating through content list 
 	ada_pred = reorder(pred_train, pred_test, ind_train, ind_test)
 	for i in range(num_samples): 
 		column = 0
 		# write operation perform 
-		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], e1[i], e2[i], e3[i], e4[i], e5[i]])
+		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], list_experts[0][i], list_experts[1][i], list_experts[2][i], list_experts[3][i], list_experts[4][i], list_experts[5][i], list_experts[6][i]], list_experts[7][i], list_experts[8][i], list_experts[9][i], pred_test[i], pred_test_g[i])
 		row += 1
 	#worksheet.write(row, 0, "major_accuracy: "+ str(y_major_ac))
 	#worksheet.write(row+1, 0, "weight_accuracy: "+ str(y_wei_ac))
