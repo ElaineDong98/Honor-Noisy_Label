@@ -236,6 +236,9 @@ if __name__ == '__main__':
 	num_samples = 5000
 	#####this line is to create random data (used before ver6)
 	x, tag = create_features(num_samples, 0.9)
+	# x [[1a 1b  ... 1j] [2a 2b ... 2j] ... [5000a 5000b ... 5000j]]
+	# tag [1 1 -1 ...] 5000 samples 
+
 	#indice to keep track of which row of dataset is selected
 	indices = range(num_samples)
 	# indices_train,indices_test: ([1, 2, 6 ...], [0, 3, 4, 5, ...])
