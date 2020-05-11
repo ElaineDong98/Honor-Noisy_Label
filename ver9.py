@@ -494,13 +494,10 @@ if __name__ == '__main__':
 	for i in range(num_samples): 
 		column = 0
 		# write operation perform 
-		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], e1[i], e2[i], e3[i], e4[i], e5[i])
+		worksheet.write_row(row, column, [x[i][0], x[i][1], tag[i], e1[i], e2[i], e3[i], e4[i], e5[i]])
 		row += 1
 	#worksheet.write(row, 0, "major_accuracy: "+ str(y_major_ac))
 	#worksheet.write(row+1, 0, "weight_accuracy: "+ str(y_wei_ac))
-
-
-	
 	workbook.close() 
 
 

@@ -20,7 +20,7 @@ from scipy.spatial.distance import cosine
 from sklearn.datasets import make_blobs
 from scipy.spatial import distance
 import random
-import truthFinder 
+#import truthFinder 
 from itertools import cycle
 from sklearn import tree
 import pandas as pd
@@ -122,12 +122,12 @@ def create_features(size, neg_ratio):
 	#negative
 	# ten features now
 	x2, y = make_blobs(n_samples=neg_num, centers=1, n_features=10,
-	                   random_state=0, cluster_std=2.1, center_box=(1.2, 1.2), shuffle=True)
-	ax.scatter3D(x2[:, 0], x2[:, 1], x2[:, 2], 'r.', color='blue', alpha=0.5)
+	                   random_state=0, cluster_std=2.5, center_box=(1.5, 1.5), shuffle=True)
+	ax.scatter3D(x2[:, 0], x2[:, 1], x2[:, 2], 'r.', color='blue', alpha=0.3)
 	#positive
 	x1, y = make_blobs(n_samples=pos_num, centers=1, n_features=10,
-	                   random_state=0, cluster_std=1.6, center_box=(5.5, 5.5), shuffle=True)
-	ax.scatter3D(x1[:, 0], x1[:, 1], x1[:, 2], 'r+', color='red', alpha=0.5)
+	                   random_state=0, cluster_std=2.5, center_box=(5, 5), shuffle=True)
+	ax.scatter3D(x1[:, 0], x1[:, 1], x1[:, 2], 'r+', color='red', alpha=0.3)
 	plt.show()
 
 	correct = [1] * pos_num
